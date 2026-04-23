@@ -9,7 +9,8 @@ This is a static menu web page that can be opened by scanning a QR code.
    - `item`
    - `price`
    - `category` (veg / non-veg)
-   - `section` (optional, e.g., Starters)
+   - `section` (e.g., Starters, Main Course, Alcohol, Non-Alcoholic)
+   - `type` (optional: food / drinks)
 3. Fill your menu rows.
 4. Make it public:
    - Share -> General access -> **Anyone with the link**

@@ -3,31 +3,60 @@ const GOOGLE_SHEET_CSV_URL =
 
 const statusEl = document.getElementById("status");
 const menuListEl = document.getElementById("menuList");
-const filterButtons = document.querySelectorAll(".filter-btn");
 const themeToggleEl = document.getElementById("themeToggle");
+const menuTypeButtons = document.querySelectorAll(".menu-type-btn");
+const foodFilterButtons = document.querySelectorAll(".food-filter-btn");
+const drinkFilterButtons = document.querySelectorAll(".drink-filter-btn");
+const foodFiltersEl = document.getElementById("foodFilters");
+const drinkFiltersEl = document.getElementById("drinkFilters");
 
 const SAMPLE_MENU_ITEMS = [
   { name: "Paneer Tikka", price: "₹220", category: "veg", section: "Starters" },
   { name: "Veg Biryani", price: "₹260", category: "veg", section: "Main Course" },
   { name: "Butter Chicken", price: "₹320", category: "non-veg", section: "Main Course" },
   { name: "Chicken Tikka", price: "₹290", category: "non-veg", section: "Starters" },
+  { name: "Kingfisher Beer", price: "₹190", category: "", section: "Alcohol" },
+  { name: "Fresh Lime Soda", price: "₹90", category: "", section: "Non-Alcoholic" },
 ];
 
 const isSheetConfigured = !GOOGLE_SHEET_CSV_URL.includes("REPLACE_WITH_SHEET_ID");
 let menuItems = isSheetConfigured ? [] : [...SAMPLE_MENU_ITEMS];
-let activeFilter = "all";
+let activeMenuType = "food";
+let activeFoodFilter = "all";
+let activeDrinkFilter = "all";
 const THEME_KEY = "menu-theme";
 
-filterButtons.forEach((button) => {
+menuTypeButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    activeFilter = button.dataset.filter || "all";
-    applyFilterToggleState();
+    activeMenuType = button.dataset.menuType || "food";
+    applyMenuTypeToggleState();
+    applyFilterVisibility();
     renderMenu();
   });
 });
+
+foodFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeFoodFilter = button.dataset.foodFilter || "all";
+    applyFilterToggleState(foodFilterButtons, activeFoodFilter, "foodFilter");
+    renderMenu();
+  });
+});
+
+drinkFilterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeDrinkFilter = button.dataset.drinkFilter || "all";
+    applyFilterToggleState(drinkFilterButtons, activeDrinkFilter, "drinkFilter");
+    renderMenu();
+  });
+});
+
 themeToggleEl.addEventListener("click", toggleTheme);
 
-applyFilterToggleState();
+applyMenuTypeToggleState();
+applyFilterToggleState(foodFilterButtons, activeFoodFilter, "foodFilter");
+applyFilterToggleState(drinkFilterButtons, activeDrinkFilter, "drinkFilter");
+applyFilterVisibility();
 initializeTheme();
 init();
 
@@ -66,10 +95,16 @@ async function init() {
 }
 
 function renderMenu() {
-  const filtered =
-    activeFilter === "all"
-      ? menuItems
-      : menuItems.filter((item) => normalizeCategory(item.category) === activeFilter);
+  const filtered = menuItems.filter((item) => {
+    const itemType = inferMenuType(item);
+    if (itemType !== activeMenuType) return false;
+
+    if (activeMenuType === "food") {
+      return activeFoodFilter === "all" || normalizeCategory(item.category) === activeFoodFilter;
+    }
+
+    return activeDrinkFilter === "all" || normalizeDrinkSection(item.section) === activeDrinkFilter;
+  });
 
   if (!filtered.length) {
     menuListEl.innerHTML = '<div class="empty">No items found for this filter.</div>';
@@ -85,8 +120,8 @@ function renderMenu() {
             <span class="menu-item-price">${escapeHtml(item.price)}</span>
           </div>
           <div class="menu-item-meta">
-            <span class="pill ${normalizeCategory(item.category)}">${escapeHtml(item.category || "N/A")}</span>
-            ${item.section ? `<span class="pill">${escapeHtml(item.section)}</span>` : ""}
+            ${renderCategoryPill(item)}
+            ${item.section ? `<span class="pill ${normalizeDrinkSection(item.section)}">${escapeHtml(item.section)}</span>` : ""}
           </div>
         </article>
       `
@@ -100,6 +135,7 @@ function normalizeItem(row) {
     price: row.price || "",
     category: row.category || "",
     section: row.section || "",
+    menuType: row.type || row.menu || "",
   };
 }
 
@@ -108,6 +144,31 @@ function normalizeCategory(value) {
   if (["veg", "vegetarian", "v"].includes(raw)) return "veg";
   if (["non-veg", "non veg", "nonvegetarian", "nv"].includes(raw)) return "non-veg";
   return "other";
+}
+
+function normalizeDrinkSection(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (["alcohol", "alcoholic"].includes(raw)) return "alcohol";
+  if (["non-alcoholic", "non alcoholic", "mocktail", "soft drink", "juice"].includes(raw)) return "non-alcoholic";
+  return "other";
+}
+
+function inferMenuType(item) {
+  const explicitType = String(item.menuType || "").trim().toLowerCase();
+  if (["drink", "drinks", "beverage", "beverages"].includes(explicitType)) return "drinks";
+  if (["food", "foods"].includes(explicitType)) return "food";
+
+  const sectionType = normalizeDrinkSection(item.section);
+  return sectionType === "alcohol" || sectionType === "non-alcoholic" ? "drinks" : "food";
+}
+
+function renderCategoryPill(item) {
+  if (inferMenuType(item) === "drinks") {
+    return '<span class="pill">Drink</span>';
+  }
+
+  const normalized = normalizeCategory(item.category);
+  return `<span class="pill ${normalized}">${escapeHtml(item.category || "N/A")}</span>`;
 }
 
 function parseCsv(csvText) {
@@ -189,13 +250,29 @@ function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
   const isDark = theme === "dark";
   themeToggleEl.setAttribute("aria-pressed", String(isDark));
-  themeToggleEl.textContent = isDark ? "Theme: Dark" : "Theme: Light";
+  themeToggleEl.textContent = isDark ? "🌙" : "☀️";
+  themeToggleEl.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
 }
 
-function applyFilterToggleState() {
-  filterButtons.forEach((button) => {
-    const isActive = button.dataset.filter === activeFilter;
+function applyFilterToggleState(buttons, activeValue, key) {
+  buttons.forEach((button) => {
+    const dataKey = key === "foodFilter" ? button.dataset.foodFilter : button.dataset.drinkFilter;
+    const isActive = dataKey === activeValue;
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", String(isActive));
   });
+}
+
+function applyMenuTypeToggleState() {
+  menuTypeButtons.forEach((button) => {
+    const isActive = button.dataset.menuType === activeMenuType;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function applyFilterVisibility() {
+  const isFood = activeMenuType === "food";
+  foodFiltersEl.classList.toggle("hidden", !isFood);
+  drinkFiltersEl.classList.toggle("hidden", isFood);
 }
