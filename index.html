@@ -14,15 +14,14 @@
       </header>
 
       <section class="controls">
-        <button id="themeToggle" type="button" class="theme-toggle" aria-label="Toggle theme">
-          Dark Theme
+        <button id="themeToggle" type="button" class="theme-toggle" aria-label="Toggle theme" aria-pressed="false">
+          Theme: Light
         </button>
-        <label for="categoryFilter" class="sr-only">Filter by category</label>
-        <select id="categoryFilter">
-          <option value="all">All</option>
-          <option value="veg">Veg</option>
-          <option value="non-veg">Non-Veg</option>
-        </select>
+        <div class="filter-toggle" role="group" aria-label="Filter by category">
+          <button type="button" class="filter-btn is-active" data-filter="all">All</button>
+          <button type="button" class="filter-btn" data-filter="veg">Veg</button>
+          <button type="button" class="filter-btn" data-filter="non-veg">Non-Veg</button>
+        </div>
       </section>
 
       <section id="status" class="status">Loading menu...</section>

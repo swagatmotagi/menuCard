@@ -3,7 +3,7 @@ const GOOGLE_SHEET_CSV_URL =
 
 const statusEl = document.getElementById("status");
 const menuListEl = document.getElementById("menuList");
-const filterEl = document.getElementById("categoryFilter");
+const filterButtons = document.querySelectorAll(".filter-btn");
 const themeToggleEl = document.getElementById("themeToggle");
 
 const SAMPLE_MENU_ITEMS = [
@@ -15,11 +15,19 @@ const SAMPLE_MENU_ITEMS = [
 
 const isSheetConfigured = !GOOGLE_SHEET_CSV_URL.includes("REPLACE_WITH_SHEET_ID");
 let menuItems = isSheetConfigured ? [] : [...SAMPLE_MENU_ITEMS];
+let activeFilter = "all";
 const THEME_KEY = "menu-theme";
 
-filterEl.addEventListener("change", renderMenu);
+filterButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    activeFilter = button.dataset.filter || "all";
+    applyFilterToggleState();
+    renderMenu();
+  });
+});
 themeToggleEl.addEventListener("click", toggleTheme);
 
+applyFilterToggleState();
 initializeTheme();
 init();
 
@@ -58,11 +66,10 @@ async function init() {
 }
 
 function renderMenu() {
-  const filter = filterEl.value;
   const filtered =
-    filter === "all"
+    activeFilter === "all"
       ? menuItems
-      : menuItems.filter((item) => normalizeCategory(item.category) === filter);
+      : menuItems.filter((item) => normalizeCategory(item.category) === activeFilter);
 
   if (!filtered.length) {
     menuListEl.innerHTML = '<div class="empty">No items found for this filter.</div>';
@@ -180,5 +187,15 @@ function toggleTheme() {
 
 function applyTheme(theme) {
   document.documentElement.setAttribute("data-theme", theme);
-  themeToggleEl.textContent = theme === "dark" ? "Light Theme" : "Dark Theme";
+  const isDark = theme === "dark";
+  themeToggleEl.setAttribute("aria-pressed", String(isDark));
+  themeToggleEl.textContent = isDark ? "Theme: Dark" : "Theme: Light";
+}
+
+function applyFilterToggleState() {
+  filterButtons.forEach((button) => {
+    const isActive = button.dataset.filter === activeFilter;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
 }
