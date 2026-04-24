@@ -14,14 +14,22 @@
   </head>
   <body>
     <main class="container">
-      <button id="themeToggle" type="button" class="theme-toggle top-right-theme" aria-label="Switch to dark theme" aria-pressed="false">
+      <button id="themeToggle" type="button" class="theme-toggle top-left-theme" aria-label="Switch to dark theme" aria-pressed="false">
         ☀️
+      </button>
+      <button id="searchToggle" type="button" class="action-toggle top-right-search" aria-label="Search items" aria-expanded="false">
+        🔍
       </button>
 
       <header class="header">
         <h1 id="restaurantName">Hotel Yuvraj</h1>
         <p class="subtitle">Scan, browse, and order easily</p>
       </header>
+
+      <section id="searchPanel" class="search-panel hidden" aria-label="Search menu items">
+        <input id="searchInput" class="search-input" type="search" placeholder="Search by item name..." autocomplete="off" />
+      </section>
+      <section id="searchResults" class="menu-list search-results hidden"></section>
 
       <section class="controls">
         <div class="filter-toggle" id="menuTypeToggle" role="group" aria-label="Choose menu type">

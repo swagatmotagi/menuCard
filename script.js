@@ -5,6 +5,10 @@ const statusEl = document.getElementById("status");
 const menuListEl = document.getElementById("menuList");
 const menuContentEl = document.getElementById("menuContent");
 const themeToggleEl = document.getElementById("themeToggle");
+const searchToggleEl = document.getElementById("searchToggle");
+const searchPanelEl = document.getElementById("searchPanel");
+const searchInputEl = document.getElementById("searchInput");
+const searchResultsEl = document.getElementById("searchResults");
 const menuTypeButtons = document.querySelectorAll(".menu-type-btn");
 const foodFilterButtons = document.querySelectorAll(".food-filter-btn");
 const drinkFilterButtons = document.querySelectorAll(".drink-filter-btn");
@@ -42,6 +46,7 @@ let activeFoodFilter = "all";
 let activeFoodSection = "all";
 let activeDrinkFilter = "all";
 let activeDrinkSection = "all";
+let isSearchOpen = false;
 const THEME_KEY = "menu-theme";
 
 menuTypeButtons.forEach((button) => {
@@ -74,6 +79,8 @@ drinkFilterButtons.forEach((button) => {
 });
 
 themeToggleEl.addEventListener("click", toggleTheme);
+searchToggleEl.addEventListener("click", toggleSearch);
+searchInputEl.addEventListener("input", renderSearchResults);
 
 applyMenuTypeToggleState();
 applyFilterToggleState(foodFilterButtons, activeFoodFilter, "foodFilter");
@@ -138,20 +145,23 @@ function renderMenu() {
     return true;
   });
 
-  if (!filtered.length) {
+  const itemsToRender = activeMenuType === "drinks" ? groupDrinkItems(filtered) : filtered;
+
+  if (!itemsToRender.length) {
     menuListEl.innerHTML = '<div class="empty">No items found for this filter.</div>';
     return;
   }
 
-  menuListEl.innerHTML = filtered
+  menuListEl.innerHTML = itemsToRender
     .map(
       (item) => `
         <article class="menu-item">
           <div class="menu-item-header">
-            <h2 class="menu-item-name">${escapeHtml(item.name)}</h2>
-            <span class="menu-item-price">${escapeHtml(formatPrice(item.price))}</span>
+            <h2 class="menu-item-name">${escapeHtml(getDisplayName(item))}</h2>
+            ${renderPrimaryPrice(item)}
           </div>
           ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
+          ${renderDrinkSizeList(item)}
           <div class="menu-item-meta">
             ${renderCategoryPill(item)}
             ${item.section ? `<span class="pill ${normalizeDrinkSection(item.section)}">${escapeHtml(item.section)}</span>` : ""}
@@ -162,11 +172,78 @@ function renderMenu() {
     .join("");
 }
 
+function toggleSearch() {
+  isSearchOpen = !isSearchOpen;
+  applySearchState();
+
+  if (isSearchOpen) {
+    searchInputEl.focus();
+    renderSearchResults();
+    return;
+  }
+
+  searchInputEl.value = "";
+  searchResultsEl.innerHTML = "";
+}
+
+function applySearchState() {
+  searchToggleEl.setAttribute("aria-expanded", String(isSearchOpen));
+  searchPanelEl.classList.toggle("hidden", !isSearchOpen);
+  searchResultsEl.classList.toggle("hidden", !isSearchOpen);
+  menuContentEl.classList.toggle("hidden", isSearchOpen);
+  statusEl.classList.toggle("hidden", isSearchOpen);
+}
+
+function renderSearchResults() {
+  const query = String(searchInputEl.value || "")
+    .trim()
+    .toLowerCase();
+
+  if (!query) {
+    searchResultsEl.innerHTML = '<div class="empty">Type an item name to search.</div>';
+    return;
+  }
+
+  const matches = getSearchableItems().filter((item) => {
+    const byName = String(item.name || "").toLowerCase().includes(query);
+    const byDisplayName = String(item.displayName || "").toLowerCase().includes(query);
+    return byName || byDisplayName;
+  });
+
+  if (!matches.length) {
+    searchResultsEl.innerHTML = '<div class="empty">No matching items found.</div>';
+    return;
+  }
+
+  searchResultsEl.innerHTML = matches
+    .map(
+      (item) => `
+        <article class="menu-item">
+          <div class="menu-item-header">
+            <h2 class="menu-item-name">${escapeHtml(getDisplayName(item))}</h2>
+            ${renderPrimaryPrice(item)}
+          </div>
+          ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
+          ${renderDrinkSizeList(item)}
+        </article>
+      `
+    )
+    .join("");
+}
+
+function getSearchableItems() {
+  const foodItems = menuItems.filter((item) => inferMenuType(item) === "food");
+  const drinkItems = groupDrinkItems(menuItems.filter((item) => inferMenuType(item) === "drinks"));
+  return [...foodItems, ...drinkItems];
+}
+
 function normalizeItem(row) {
   return {
     name: row.item || row.name || "",
+    displayName: row.display_name || row.displayname || "",
     description: row.description || "",
     price: row.price || "",
+    size: row.size || "",
     category: row.category || "",
     section: row.section || "",
     menuType: row.type || row.menu || "",
@@ -388,6 +465,70 @@ function formatPrice(value) {
   if (!raw) return PRICE_SYMBOL;
   const normalized = raw.replace(/^(₹|rs\.?|inr)\s*/i, "").trim();
   return normalized ? `${PRICE_SYMBOL} ${normalized}` : PRICE_SYMBOL;
+}
+
+function groupDrinkItems(items) {
+  const grouped = new Map();
+
+  items.forEach((item) => {
+    const key = String(item.name || "")
+      .trim()
+      .toLowerCase();
+
+    if (!key) return;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        ...item,
+        sizePrices: [],
+      });
+    }
+
+    const group = grouped.get(key);
+    if (!group.displayName && item.displayName) {
+      group.displayName = item.displayName;
+    }
+    if (!group.description && item.description) {
+      group.description = item.description;
+    }
+
+    const sizeLabel = String(item.size || "").trim();
+    const priceValue = String(item.price || "").trim();
+    const existing = group.sizePrices.some((entry) => entry.size === sizeLabel && entry.price === priceValue);
+    if (!existing) {
+      group.sizePrices.push({ size: sizeLabel, price: priceValue });
+    }
+  });
+
+  return [...grouped.values()];
+}
+
+function renderPrimaryPrice(item) {
+  if (inferMenuType(item) === "drinks") return "";
+  return `<span class="menu-item-price">${escapeHtml(formatPrice(item.price))}</span>`;
+}
+
+function renderDrinkSizeList(item) {
+  if (inferMenuType(item) !== "drinks") return "";
+
+  const entries = item.sizePrices?.length ? item.sizePrices : [{ size: item.size || "", price: item.price || "" }];
+  if (!entries.length) return "";
+
+  const rows = entries
+    .map((entry) => {
+      const sizeLabel = entry.size ? escapeHtml(entry.size) : "Standard";
+      const priceLabel = escapeHtml(formatPrice(entry.price));
+      return `<div class="drink-size-row"><span class="drink-size-label">${sizeLabel}</span><span class="drink-size-price">${priceLabel}</span></div>`;
+    })
+    .join("");
+
+  return `<div class="drink-size-list">${rows}</div>`;
+}
+
+function getDisplayName(item) {
+  const preferred = String(item.displayName || "").trim();
+  if (preferred) return preferred;
+  return String(item.name || "").trim();
 }
 
 function initializeTheme() {
