@@ -514,14 +514,17 @@ function groupDrinkItems(items) {
 }
 
 function renderPrimaryPrice(item) {
-  if (inferMenuType(item) === "drinks") return "";
+  if (inferMenuType(item) === "drinks") {
+    const hasSizes = getDrinkSizeEntries(item).some((entry) => String(entry.size || "").trim());
+    if (hasSizes) return "";
+  }
   return `<span class="menu-item-price">${escapeHtml(formatPrice(item.price))}</span>`;
 }
 
 function renderDrinkSizeList(item) {
   if (inferMenuType(item) !== "drinks") return "";
 
-  const entries = item.sizePrices?.length ? item.sizePrices : [{ size: item.size || "", price: item.price || "" }];
+  const entries = getDrinkSizeEntries(item);
   const validEntries = entries.filter((entry) => String(entry.size || "").trim());
   if (!validEntries.length) return "";
 
@@ -534,6 +537,10 @@ function renderDrinkSizeList(item) {
     .join("");
 
   return `<div class="drink-size-list">${rows}</div>`;
+}
+
+function getDrinkSizeEntries(item) {
+  return item.sizePrices?.length ? item.sizePrices : [{ size: item.size || "", price: item.price || "" }];
 }
 
 function getDisplayName(item) {
