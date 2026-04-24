@@ -200,14 +200,15 @@ function renderSearchResults() {
     .toLowerCase();
 
   if (!query) {
-    searchResultsEl.innerHTML = '<div class="empty">Type an item name to search.</div>';
+    searchResultsEl.innerHTML = '<div class="empty">Type an item or section to search.</div>';
     return;
   }
 
   const matches = getSearchableItems().filter((item) => {
     const byName = String(item.name || "").toLowerCase().includes(query);
     const byDisplayName = String(item.displayName || "").toLowerCase().includes(query);
-    return byName || byDisplayName;
+    const bySection = getSearchSections(item).some((section) => section.toLowerCase().includes(query));
+    return byName || byDisplayName || bySection;
   });
 
   if (!matches.length) {
@@ -481,6 +482,7 @@ function groupDrinkItems(items) {
       grouped.set(key, {
         ...item,
         sizePrices: [],
+        searchSections: [],
       });
     }
 
@@ -490,6 +492,14 @@ function groupDrinkItems(items) {
     }
     if (!group.description && item.description) {
       group.description = item.description;
+    }
+    if (!group.section && item.section) {
+      group.section = item.section;
+    }
+
+    const sectionName = String(item.section || "").trim();
+    if (sectionName && !group.searchSections.some((value) => value.toLowerCase() === sectionName.toLowerCase())) {
+      group.searchSections.push(sectionName);
     }
 
     const sizeLabel = String(item.size || "").trim();
@@ -512,11 +522,12 @@ function renderDrinkSizeList(item) {
   if (inferMenuType(item) !== "drinks") return "";
 
   const entries = item.sizePrices?.length ? item.sizePrices : [{ size: item.size || "", price: item.price || "" }];
-  if (!entries.length) return "";
+  const validEntries = entries.filter((entry) => String(entry.size || "").trim());
+  if (!validEntries.length) return "";
 
-  const rows = entries
+  const rows = validEntries
     .map((entry) => {
-      const sizeLabel = entry.size ? escapeHtml(entry.size) : "Standard";
+      const sizeLabel = escapeHtml(entry.size);
       const priceLabel = escapeHtml(formatPrice(entry.price));
       return `<div class="drink-size-row"><span class="drink-size-label">${sizeLabel}</span><span class="drink-size-price">${priceLabel}</span></div>`;
     })
@@ -529,6 +540,23 @@ function getDisplayName(item) {
   const preferred = String(item.displayName || "").trim();
   if (preferred) return preferred;
   return String(item.name || "").trim();
+}
+
+function getSearchSections(item) {
+  const sections = [];
+  const primary = String(item.section || "").trim();
+  if (primary) sections.push(primary);
+
+  if (Array.isArray(item.searchSections)) {
+    item.searchSections.forEach((section) => {
+      const value = String(section || "").trim();
+      if (!value) return;
+      if (sections.some((existing) => existing.toLowerCase() === value.toLowerCase())) return;
+      sections.push(value);
+    });
+  }
+
+  return sections;
 }
 
 function initializeTheme() {
