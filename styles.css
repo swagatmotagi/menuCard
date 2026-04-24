@@ -183,6 +183,59 @@ h1 {
   font-weight: 500;
 }
 
+.menu-content {
+  display: block;
+}
+
+.menu-content.has-drink-panel {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.drink-section-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--menu-shadow);
+}
+
+.panel-title {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vertical-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.vertical-tab-btn {
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: var(--control-bg);
+  color: var(--text);
+  padding: 8px 10px;
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vertical-tab-btn.is-active {
+  background: linear-gradient(140deg, var(--accent), var(--accent-strong));
+  color: #fff;
+  border-color: transparent;
+}
+
 .menu-list {
   display: grid;
   gap: 14px;
@@ -301,5 +354,18 @@ h1 {
   .filter-btn {
     padding: 9px 12px;
     font-size: 0.9rem;
+  }
+
+  .menu-content.has-drink-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .vertical-tabs {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .vertical-tab-btn {
+    text-align: center;
   }
 }
