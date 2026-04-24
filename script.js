@@ -151,6 +151,7 @@ function renderMenu() {
             <h2 class="menu-item-name">${escapeHtml(item.name)}</h2>
             <span class="menu-item-price">${escapeHtml(formatPrice(item.price))}</span>
           </div>
+          ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
           <div class="menu-item-meta">
             ${renderCategoryPill(item)}
             ${item.section ? `<span class="pill ${normalizeDrinkSection(item.section)}">${escapeHtml(item.section)}</span>` : ""}
@@ -164,6 +165,7 @@ function renderMenu() {
 function normalizeItem(row) {
   return {
     name: row.item || row.name || "",
+    description: row.description || "",
     price: row.price || "",
     category: row.category || "",
     section: row.section || "",

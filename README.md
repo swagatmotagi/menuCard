@@ -7,6 +7,7 @@ This is a static menu web page that can be opened by scanning a QR code.
 1. Create a Google Sheet with tab name: `Menu`
 2. Add headers in row 1:
    - `item`
+   - `description` (optional)
    - `price`
    - `category` (veg / non-veg / alcoholic-drink / non-alcoholic-drink)
    - `section` (any section name you want, e.g., Starters/Snacks, Thali, Whiskey, Mocktail, Other)
