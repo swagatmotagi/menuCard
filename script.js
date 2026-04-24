@@ -14,6 +14,7 @@ const foodSectionPanelEl = document.getElementById("foodSectionPanel");
 const foodSectionTabsEl = document.getElementById("foodSectionTabs");
 const drinkSectionPanelEl = document.getElementById("drinkSectionPanel");
 const drinkSectionTabsEl = document.getElementById("drinkSectionTabs");
+const PRICE_SYMBOL = "₹";
 
 const SAMPLE_MENU_ITEMS = [
   { name: "Paneer Tikka", price: "₹220", category: "veg", section: "Starters" },
@@ -148,7 +149,7 @@ function renderMenu() {
         <article class="menu-item">
           <div class="menu-item-header">
             <h2 class="menu-item-name">${escapeHtml(item.name)}</h2>
-            <span class="menu-item-price">${escapeHtml(item.price)}</span>
+            <span class="menu-item-price">${escapeHtml(formatPrice(item.price))}</span>
           </div>
           <div class="menu-item-meta">
             ${renderCategoryPill(item)}
@@ -163,7 +164,7 @@ function renderMenu() {
 function normalizeItem(row) {
   return {
     name: row.item || row.name || "",
-    price: row.price || "Ask staff",
+    price: row.price || "",
     category: row.category || "",
     section: row.section || "",
     menuType: row.type || row.menu || "",
@@ -378,6 +379,13 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function formatPrice(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return PRICE_SYMBOL;
+  const normalized = raw.replace(/^(₹|rs\.?|inr)\s*/i, "").trim();
+  return normalized ? `${PRICE_SYMBOL} ${normalized}` : PRICE_SYMBOL;
 }
 
 function initializeTheme() {
