@@ -8,8 +8,8 @@ This is a static menu web page that can be opened by scanning a QR code.
 2. Add headers in row 1:
    - `item`
    - `price`
-   - `category` (veg / non-veg)
-   - `section` (e.g., Starters, Main Course, Whiskey, Rum, Beer, Vodka, Fruit Flavoured)
+   - `category` (veg / non-veg / alcoholic-drink / non-alcoholic-drink)
+   - `section` (any section name you want, e.g., Starters/Snacks, Thali, Whiskey, Mocktail, Other)
    - `type` (optional: food / drinks)
 3. Fill your menu rows.
 4. Make it public:

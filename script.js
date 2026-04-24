@@ -10,6 +10,8 @@ const foodFilterButtons = document.querySelectorAll(".food-filter-btn");
 const drinkFilterButtons = document.querySelectorAll(".drink-filter-btn");
 const foodFiltersEl = document.getElementById("foodFilters");
 const drinkFiltersEl = document.getElementById("drinkFilters");
+const foodSectionPanelEl = document.getElementById("foodSectionPanel");
+const foodSectionTabsEl = document.getElementById("foodSectionTabs");
 const drinkSectionPanelEl = document.getElementById("drinkSectionPanel");
 const drinkSectionTabsEl = document.getElementById("drinkSectionTabs");
 
@@ -18,29 +20,25 @@ const SAMPLE_MENU_ITEMS = [
   { name: "Veg Biryani", price: "₹260", category: "veg", section: "Main Course" },
   { name: "Butter Chicken", price: "₹320", category: "non-veg", section: "Main Course" },
   { name: "Chicken Tikka", price: "₹290", category: "non-veg", section: "Starters" },
-  { name: "Jameson", price: "₹280", category: "drinks", section: "Whiskey" },
-  { name: "Old Monk", price: "₹220", category: "drinks", section: "Rum" },
-  { name: "Kingfisher", price: "₹190", category: "drinks", section: "Beer" },
-  { name: "Smirnoff", price: "₹260", category: "drinks", section: "Vodka" },
-  { name: "Berry Cooler", price: "₹140", category: "drinks", section: "Fruit Flavoured" },
+  { name: "Jameson", price: "₹280", category: "alcoholic-drink", section: "Whiskey" },
+  { name: "Old Monk", price: "₹220", category: "alcoholic-drink", section: "Rum" },
+  { name: "Kingfisher", price: "₹190", category: "alcoholic-drink", section: "Beer" },
+  { name: "Smirnoff", price: "₹260", category: "alcoholic-drink", section: "Vodka" },
+  { name: "Berry Cooler", price: "₹140", category: "non-alcoholic-drink", section: "Fruit Flavoured" },
 ];
 
-const DRINK_SECTION_LABELS = {
+const FOOD_SECTION_LABELS = {
   all: "All",
-  whiskey: "Whiskey",
-  rum: "Rum",
-  beer: "Beer",
-  vodka: "Vodka",
-  "fruit-flavoured": "Fruit Flavoured",
+  "starters-snacks": "Starters/Snacks",
+  thali: "Thali",
 };
-
-const ALCOHOLIC_SECTION_KEYS = ["whiskey", "rum", "beer", "vodka"];
-const NON_ALCOHOLIC_SECTION_KEYS = ["fruit-flavoured"];
+const FOOD_PREFERRED_SECTION_KEYS = ["starters-snacks", "thali"];
 
 const isSheetConfigured = !GOOGLE_SHEET_CSV_URL.includes("REPLACE_WITH_SHEET_ID");
 let menuItems = isSheetConfigured ? [] : [...SAMPLE_MENU_ITEMS];
 let activeMenuType = "food";
 let activeFoodFilter = "all";
+let activeFoodSection = "all";
 let activeDrinkFilter = "all";
 let activeDrinkSection = "all";
 const THEME_KEY = "menu-theme";
@@ -57,7 +55,9 @@ menuTypeButtons.forEach((button) => {
 foodFilterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     activeFoodFilter = button.dataset.foodFilter || "all";
+    activeFoodSection = "all";
     applyFilterToggleState(foodFilterButtons, activeFoodFilter, "foodFilter");
+    applyFilterVisibility();
     renderMenu();
   });
 });
@@ -122,7 +122,11 @@ function renderMenu() {
     if (itemType !== activeMenuType) return false;
 
     if (activeMenuType === "food") {
-      return activeFoodFilter === "all" || normalizeCategory(item.category) === activeFoodFilter;
+      if (activeFoodFilter !== "all" && normalizeCategory(item.category) !== activeFoodFilter) return false;
+      if (shouldShowFoodSectionPanel() && activeFoodSection !== "all") {
+        return normalizeFoodSection(item.section) === activeFoodSection;
+      }
+      return true;
     }
 
     if (activeDrinkFilter !== "all" && determineDrinkFamily(item) !== activeDrinkFilter) return false;
@@ -176,31 +180,44 @@ function normalizeCategory(value) {
 
 function normalizeDrinkSection(value) {
   const raw = String(value || "").trim().toLowerCase();
-  if (["whiskey", "whisky"].includes(raw)) return "whiskey";
-  if (raw === "rum") return "rum";
-  if (raw === "beer") return "beer";
-  if (raw === "vodka") return "vodka";
-  if (["fruit flavoured", "fruit-flavoured", "fruit flavored", "fruit-flavored"].includes(raw)) return "fruit-flavoured";
-  if (["alcohol", "alcoholic"].includes(raw)) return "alcohol";
-  if (["non-alcoholic", "non alcoholic", "mocktail", "soft drink", "juice"].includes(raw)) return "non-alcoholic";
-  return "other";
+  if (!raw) return "other";
+  return slugify(raw);
+}
+
+function normalizeFoodSection(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "other";
+  if (["starters", "starter", "snacks", "snack", "starters/snacks", "starters / snacks"].includes(raw)) {
+    return "starters-snacks";
+  }
+  if (raw === "thali") return "thali";
+  return slugify(raw);
 }
 
 function determineDrinkFamily(item) {
-  const sectionKey = normalizeDrinkSection(item.section);
-  if (ALCOHOLIC_SECTION_KEYS.includes(sectionKey) || sectionKey === "alcohol") return "alcohol";
-  if (NON_ALCOHOLIC_SECTION_KEYS.includes(sectionKey) || sectionKey === "non-alcoholic") return "non-alcoholic";
-  return "alcohol";
+  const raw = String(item.category || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+  if (raw === "alcoholic-drink") return "alcohol";
+  if (
+    raw === "non-alcoholic-drink" ||
+    raw === "nonalcoholic-drink" ||
+    raw === "non-alcholic-drink" ||
+    raw === "nonalcholic-drink"
+  ) {
+    return "non-alcoholic";
+  }
+  if (["drink", "drinks", "beverage", "beverages"].includes(raw)) return "alcohol";
+  return "other";
 }
 
 function inferMenuType(item) {
   const explicitType = String(item.menuType || "").trim().toLowerCase();
   if (["drink", "drinks", "beverage", "beverages"].includes(explicitType)) return "drinks";
   if (["food", "foods"].includes(explicitType)) return "food";
-  if (normalizeCategory(item.category) === "drinks") return "drinks";
-
-  const sectionType = normalizeDrinkSection(item.section);
-  return sectionType === "other" ? "food" : "drinks";
+  if (determineDrinkFamily(item) !== "other" || normalizeCategory(item.category) === "drinks") return "drinks";
+  return "food";
 }
 
 function renderCategoryPill(item) {
@@ -212,21 +229,64 @@ function renderCategoryPill(item) {
   return `<span class="pill ${normalized}">${escapeHtml(item.category || "N/A")}</span>`;
 }
 
-function getDrinkSectionOptions() {
-  const preferred = activeDrinkFilter === "alcohol" ? ALCOHOLIC_SECTION_KEYS : NON_ALCOHOLIC_SECTION_KEYS;
-  const items = menuItems.filter((item) => inferMenuType(item) === "drinks");
-  const extras = new Set();
+function getFoodSectionOptions() {
+  const items = menuItems.filter(
+    (item) =>
+      inferMenuType(item) === "food" &&
+      (activeFoodFilter === "all" || normalizeCategory(item.category) === activeFoodFilter)
+  );
+  const available = new Set();
 
   items.forEach((item) => {
-    if (determineDrinkFamily(item) !== activeDrinkFilter) return;
-    const sectionKey = normalizeDrinkSection(item.section);
+    const sectionKey = normalizeFoodSection(item.section);
     if (!sectionKey || sectionKey === "other") return;
-    if (preferred.includes(sectionKey)) return;
-    if (sectionKey === "alcohol" || sectionKey === "non-alcoholic") return;
-    extras.add(sectionKey);
+    available.add(sectionKey);
   });
 
-  return ["all", ...preferred, ...[...extras].sort()];
+  const orderedPreferred = FOOD_PREFERRED_SECTION_KEYS.filter((key) => available.has(key));
+  const extras = [...available].filter((key) => !FOOD_PREFERRED_SECTION_KEYS.includes(key)).sort();
+  return ["all", ...orderedPreferred, ...extras];
+}
+
+function renderFoodSectionTabs() {
+  const options = getFoodSectionOptions();
+
+  if (!options.includes(activeFoodSection)) {
+    activeFoodSection = "all";
+  }
+
+  foodSectionTabsEl.innerHTML = options
+    .map((key) => {
+      const isActive = key === activeFoodSection;
+      const label = FOOD_SECTION_LABELS[key] || formatSectionLabel(key);
+      return `<button type="button" class="vertical-tab-btn ${isActive ? "is-active" : ""}" data-food-section="${key}" aria-pressed="${isActive}">${escapeHtml(label)}</button>`;
+    })
+    .join("");
+
+  foodSectionTabsEl.querySelectorAll(".vertical-tab-btn").forEach((button) => {
+    button.addEventListener("click", () => {
+      activeFoodSection = button.dataset.foodSection || "all";
+      renderFoodSectionTabs();
+      renderMenu();
+    });
+  });
+}
+
+function getDrinkSectionOptions() {
+  const items = menuItems.filter(
+    (item) =>
+      inferMenuType(item) === "drinks" &&
+      (activeDrinkFilter === "all" || determineDrinkFamily(item) === activeDrinkFilter)
+  );
+  const available = new Set();
+
+  items.forEach((item) => {
+    const sectionKey = normalizeDrinkSection(item.section);
+    if (!sectionKey) return;
+    available.add(sectionKey);
+  });
+
+  return ["all", ...[...available].sort((a, b) => a.localeCompare(b))];
 }
 
 function renderDrinkSectionTabs() {
@@ -239,7 +299,7 @@ function renderDrinkSectionTabs() {
   drinkSectionTabsEl.innerHTML = options
     .map((key) => {
       const isActive = key === activeDrinkSection;
-      const label = DRINK_SECTION_LABELS[key] || key;
+      const label = key === "all" ? "All" : formatSectionLabel(key);
       return `<button type="button" class="vertical-tab-btn ${isActive ? "is-active" : ""}" data-drink-section="${key}" aria-pressed="${isActive}">${escapeHtml(label)}</button>`;
     })
     .join("");
@@ -254,7 +314,13 @@ function renderDrinkSectionTabs() {
 }
 
 function shouldShowDrinkSectionPanel() {
-  return activeMenuType === "drinks" && activeDrinkFilter !== "all";
+  if (activeMenuType !== "drinks" || activeDrinkFilter === "all") return false;
+  return getDrinkSectionOptions().length > 1;
+}
+
+function shouldShowFoodSectionPanel() {
+  if (activeMenuType !== "food") return false;
+  return getFoodSectionOptions().length > 1;
 }
 
 function parseCsv(csvText) {
@@ -362,13 +428,36 @@ function applyFilterVisibility() {
   foodFiltersEl.classList.toggle("hidden", !isFood);
   drinkFiltersEl.classList.toggle("hidden", isFood);
 
+  const showFoodSections = shouldShowFoodSectionPanel();
   const showDrinkSections = shouldShowDrinkSectionPanel();
-  menuContentEl.classList.toggle("has-drink-panel", showDrinkSections);
+  menuContentEl.classList.toggle("has-section-panel", showFoodSections || showDrinkSections);
+  foodSectionPanelEl.classList.toggle("hidden", !showFoodSections);
   drinkSectionPanelEl.classList.toggle("hidden", !showDrinkSections);
+
+  if (showFoodSections) {
+    renderFoodSectionTabs();
+  } else {
+    activeFoodSection = "all";
+  }
 
   if (showDrinkSections) {
     renderDrinkSectionTabs();
   } else {
     activeDrinkSection = "all";
   }
+}
+
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function formatSectionLabel(key) {
+  return key
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }

@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hotel Yuvraj Menu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -19,16 +25,16 @@
 
       <section class="controls">
         <div class="filter-toggle" id="menuTypeToggle" role="group" aria-label="Choose menu type">
-          <button type="button" class="filter-btn is-active menu-type-btn" data-menu-type="food">Food</button>
-          <button type="button" class="filter-btn menu-type-btn" data-menu-type="drinks">Drinks</button>
+          <button type="button" class="filter-btn is-active menu-type-btn" data-menu-type="food">जेवण</button>
+          <button type="button" class="filter-btn menu-type-btn" data-menu-type="drinks">पेये</button>
         </div>
       </section>
 
       <section class="controls" id="foodFilters">
         <div class="filter-toggle" role="group" aria-label="Filter by category">
           <button type="button" class="filter-btn is-active food-filter-btn" data-food-filter="all">All</button>
-          <button type="button" class="filter-btn food-filter-btn" data-food-filter="veg">Veg</button>
-          <button type="button" class="filter-btn food-filter-btn" data-food-filter="non-veg">Non-Veg</button>
+          <button type="button" class="filter-btn food-filter-btn" data-food-filter="veg">शाकाहारी</button>
+          <button type="button" class="filter-btn food-filter-btn" data-food-filter="non-veg">मांसाहारी</button>
         </div>
       </section>
 
@@ -42,7 +48,11 @@
 
       <section id="status" class="status">Loading menu...</section>
       <section class="menu-content" id="menuContent">
-        <aside class="drink-section-panel hidden" id="drinkSectionPanel">
+        <aside class="section-panel hidden" id="foodSectionPanel">
+          <p class="panel-title">Food Sections</p>
+          <div class="vertical-tabs" id="foodSectionTabs" role="group" aria-label="Food section filter"></div>
+        </aside>
+        <aside class="section-panel hidden" id="drinkSectionPanel">
           <p class="panel-title">Drink Sections</p>
           <div class="vertical-tabs" id="drinkSectionTabs" role="group" aria-label="Drink section filter"></div>
         </aside>
