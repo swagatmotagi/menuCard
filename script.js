@@ -124,26 +124,6 @@ async function init() {
   }
 }
 
-function createMenuItemHtml(item, index = 0) {
-  const isDrink = inferMenuType(item) === "drinks";
-  const sectionKey = isDrink ? normalizeDrinkSection(item.section) : normalizeFoodSection(item.section);
-  
-  return `
-    <article class="menu-item" style="animation-delay: ${index * 0.05}s">
-      <div class="menu-item-header">
-        <h2 class="menu-item-name">${escapeHtml(getDisplayName(item))}</h2>
-        ${renderPrimaryPrice(item)}
-      </div>
-      ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
-      ${renderDrinkSizeList(item)}
-      <div class="menu-item-meta">
-        ${renderCategoryPill(item)}
-        ${item.section ? `<span class="pill ${sectionKey}">${escapeHtml(item.section)}</span>` : ""}
-      </div>
-    </article>
-  `;
-}
-
 function renderMenu() {
   const filtered = menuItems.filter((item) => {
     const itemType = inferMenuType(item);
@@ -173,7 +153,22 @@ function renderMenu() {
   }
 
   menuListEl.innerHTML = itemsToRender
-    .map((item, idx) => createMenuItemHtml(item, idx))
+    .map(
+      (item) => `
+        <article class="menu-item">
+          <div class="menu-item-header">
+            <h2 class="menu-item-name">${escapeHtml(getDisplayName(item))}</h2>
+            ${renderPrimaryPrice(item)}
+          </div>
+          ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
+          ${renderDrinkSizeList(item)}
+          <div class="menu-item-meta">
+            ${renderCategoryPill(item)}
+            ${item.section ? `<span class="pill ${normalizeDrinkSection(item.section)}">${escapeHtml(item.section)}</span>` : ""}
+          </div>
+        </article>
+      `
+    )
     .join("");
 }
 
@@ -222,7 +217,18 @@ function renderSearchResults() {
   }
 
   searchResultsEl.innerHTML = matches
-    .map((item, idx) => createMenuItemHtml(item, idx))
+    .map(
+      (item) => `
+        <article class="menu-item">
+          <div class="menu-item-header">
+            <h2 class="menu-item-name">${escapeHtml(getDisplayName(item))}</h2>
+            ${renderPrimaryPrice(item)}
+          </div>
+          ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
+          ${renderDrinkSizeList(item)}
+        </article>
+      `
+    )
     .join("");
 }
 
