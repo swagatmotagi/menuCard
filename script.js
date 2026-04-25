@@ -1,5 +1,5 @@
 const GOOGLE_SHEET_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/1zR_fRtYXFJvAKuj3gZyhCxsA5CQTBdS0PczloPZ54GY/gviz/tq?tqx=out:csv";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vTICL7HM3180wTAOnXHB3l2ZS_EYaNYxOq_MSujRsWl-UJ98xSiQDIxFKVWsIgrjJ8KkyTMMVLi4mD1/pub?gid=0&single=true&output=csv";
 
 const statusEl = document.getElementById("status");
 const menuListEl = document.getElementById("menuList");
@@ -20,18 +20,6 @@ const drinkSectionPanelEl = document.getElementById("drinkSectionPanel");
 const drinkSectionTabsEl = document.getElementById("drinkSectionTabs");
 const PRICE_SYMBOL = "₹";
 
-const SAMPLE_MENU_ITEMS = [
-  { name: "Paneer Tikka", price: "₹220", category: "veg", section: "Starters" },
-  { name: "Veg Biryani", price: "₹260", category: "veg", section: "Main Course" },
-  { name: "Butter Chicken", price: "₹320", category: "non-veg", section: "Main Course" },
-  { name: "Chicken Tikka", price: "₹290", category: "non-veg", section: "Starters" },
-  { name: "Jameson", price: "₹280", category: "alcoholic-drink", section: "Whiskey" },
-  { name: "Old Monk", price: "₹220", category: "alcoholic-drink", section: "Rum" },
-  { name: "Kingfisher", price: "₹190", category: "alcoholic-drink", section: "Beer" },
-  { name: "Smirnoff", price: "₹260", category: "alcoholic-drink", section: "Vodka" },
-  { name: "Berry Cooler", price: "₹140", category: "non-alcoholic-drink", section: "Fruit Flavoured" },
-];
-
 const FOOD_SECTION_LABELS = {
   all: "All",
   "starters-snacks": "Starters/Snacks",
@@ -39,10 +27,9 @@ const FOOD_SECTION_LABELS = {
 };
 const FOOD_PREFERRED_SECTION_KEYS = ["starters-snacks", "thali"];
 
-const isSheetConfigured = !GOOGLE_SHEET_CSV_URL.includes("REPLACE_WITH_SHEET_ID");
-let menuItems = isSheetConfigured ? [] : [...SAMPLE_MENU_ITEMS];
+let menuItems = [];
 let activeMenuType = "food";
-let activeFoodFilter = getDefaultFilterValue(foodFilterButtons, "foodFilter", "veg");
+let activeFoodFilter = getDefaultFilterValue(foodFilterButtons, "foodFilter", "non-veg");
 let activeFoodSection = "";
 let activeDrinkFilter = getDefaultFilterValue(drinkFilterButtons, "drinkFilter", "alcohol");
 let activeDrinkSection = "";
@@ -92,11 +79,6 @@ init();
 async function init() {
   renderMenu();
 
-  if (!isSheetConfigured) {
-    statusEl.textContent = "Showing demo menu. Add your Google Sheet ID in script.js to load real items.";
-    return;
-  }
-
   try {
     const response = await fetch(GOOGLE_SHEET_CSV_URL);
     if (!response.ok) throw new Error("Could not fetch menu data.");
@@ -104,7 +86,19 @@ async function init() {
     const csv = await response.text();
     const parsedItems = parseCsv(csv)
       .map(normalizeItem)
-      .filter((item) => item.name);
+      .filter((item) => item.name)
+      .sort((a, b) => {
+        // 1. Sort by Category (Veg, Non-Veg, etc.)
+        if (a.category !== b.category) {
+          return String(a.category).localeCompare(String(b.category));
+        }
+        // 2. Sort by Section Sequence
+        if (a.sectionSequence !== b.sectionSequence) {
+          return a.sectionSequence - b.sectionSequence;
+        }
+        // 3. Sort by Item Sequence
+        return a.itemSequence - b.itemSequence;
+      });
 
     if (!parsedItems.length) {
       statusEl.textContent = "Sheet loaded, but no valid rows were found. Check headers: item, price, category, section.";
@@ -248,6 +242,8 @@ function normalizeItem(row) {
     category: row.category || "",
     section: row.section || "",
     menuType: row.type || row.menu || "",
+    sectionSequence: parseInt(row.section_sequence || row.sectionsequence || 999),
+    itemSequence: parseInt(row.item_sequence || row.itemsequence || 999),
   };
 }
 
@@ -316,17 +312,19 @@ function getFoodSectionOptions() {
       inferMenuType(item) === "food" &&
       (!activeFoodFilter || normalizeCategory(item.category) === activeFoodFilter)
   );
-  const available = new Set();
-
+  
+  const sectionMap = new Map();
   items.forEach((item) => {
-    const sectionKey = normalizeFoodSection(item.section);
-    if (!sectionKey || sectionKey === "other") return;
-    available.add(sectionKey);
+    const key = normalizeFoodSection(item.section);
+    if (!key || key === "other") return;
+    if (!sectionMap.has(key) || item.sectionSequence < sectionMap.get(key).sequence) {
+      sectionMap.set(key, { sequence: item.sectionSequence });
+    }
   });
 
-  const orderedPreferred = FOOD_PREFERRED_SECTION_KEYS.filter((key) => available.has(key));
-  const extras = [...available].filter((key) => !FOOD_PREFERRED_SECTION_KEYS.includes(key)).sort();
-  return [...orderedPreferred, ...extras];
+  return Array.from(sectionMap.keys()).sort((a, b) => {
+    return sectionMap.get(a).sequence - sectionMap.get(b).sequence;
+  });
 }
 
 function renderFoodSectionTabs() {
@@ -364,15 +362,19 @@ function getDrinkSectionOptions() {
       inferMenuType(item) === "drinks" &&
       (!activeDrinkFilter || determineDrinkFamily(item) === activeDrinkFilter)
   );
-  const available = new Set();
-
+  
+  const sectionMap = new Map();
   items.forEach((item) => {
-    const sectionKey = normalizeDrinkSection(item.section);
-    if (!sectionKey) return;
-    available.add(sectionKey);
+    const key = normalizeDrinkSection(item.section);
+    if (!key) return;
+    if (!sectionMap.has(key) || item.sectionSequence < sectionMap.get(key).sequence) {
+      sectionMap.set(key, { sequence: item.sectionSequence });
+    }
   });
 
-  return [...available].sort((a, b) => a.localeCompare(b));
+  return Array.from(sectionMap.keys()).sort((a, b) => {
+    return sectionMap.get(a).sequence - sectionMap.get(b).sequence;
+  });
 }
 
 function renderDrinkSectionTabs() {
@@ -555,8 +557,7 @@ function getDrinkSizeEntries(item) {
 
 function getDisplayName(item) {
   const preferred = String(item.displayName || "").trim();
-  if (preferred) return preferred;
-  return String(item.name || "").trim();
+  return preferred || String(item.name || "").trim();
 }
 
 function getSearchSections(item) {
@@ -644,6 +645,9 @@ function applyFilterVisibility() {
 }
 
 function getDefaultFilterValue(buttons, datasetKey, fallback) {
+  const active = [...buttons].find((button) => button.classList.contains("is-active") && button.dataset[datasetKey]);
+  if (active) return active.dataset[datasetKey];
+  
   const first = [...buttons].find((button) => button.dataset[datasetKey]);
   return first ? first.dataset[datasetKey] : fallback;
 }
