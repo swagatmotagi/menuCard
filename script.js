@@ -151,10 +151,6 @@ function renderMenu() {
           </div>
           ${item.description ? `<p class="menu-item-description">${escapeHtml(item.description)}</p>` : ""}
           ${renderDrinkSizeList(item)}
-          <div class="menu-item-meta">
-            ${renderCategoryPill(item)}
-            ${item.section ? `<span class="pill ${normalizeDrinkSection(item.section)}">${escapeHtml(item.section)}</span>` : ""}
-          </div>
         </article>
       `
     )
@@ -285,14 +281,6 @@ function inferMenuType(item) {
   if (["food", "foods"].includes(explicitType)) return "food";
   if (determineDrinkFamily(item) !== "other" || normalizeCategory(item.category) === "drinks") return "drinks";
   return "food";
-}
-
-function renderCategoryPill(item) {
-  if (inferMenuType(item) === "drinks") {
-    return '<span class="pill">Drinks</span>';
-  }
-  const normalized = normalizeCategory(item.category);
-  return `<span class="pill ${normalized}">${escapeHtml(item.category || "N/A")}</span>`;
 }
 
 function getFoodSectionOptions() {
