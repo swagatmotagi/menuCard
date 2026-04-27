@@ -31,7 +31,9 @@ let activeFoodSection = "";
 let activeDrinkFilter = getDefaultFilterValue(drinkFilterButtons, "drinkFilter", "alcohol");
 let activeDrinkSection = "";
 let isSearchOpen = false;
+let isInitialLoadInProgress = true;
 const THEME_KEY = "menu-theme";
+const sheetItemsByKey = {};
 
 menuTypeButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -75,42 +77,108 @@ init();
 
 async function init() {
   renderMenu();
-  statusEl.textContent = "Loading menu tabs...";
+  statusEl.textContent = "Loading menu...";
+
+  const initialKey = getInitialSheetKey();
+  const initialUrl = SHEET_URLS[initialKey];
+
+  if (!initialUrl || initialUrl.includes("REPLACE_WITH")) {
+    statusEl.textContent = "Default menu tab is not configured.";
+    return;
+  }
 
   try {
-    const fetchPromises = Object.entries(SHEET_URLS).map(async ([key, url]) => {
-      if (url.includes("REPLACE_WITH")) return [];
-      
-      const response = await fetch(url);
-      if (!response.ok) throw new Error(`Could not fetch ${key} data.`);
-      
-      const csv = await response.text();
-      return parseCsv(csv).map((row) => {
-        const item = normalizeItem(row);
-        // Force the category based on which tab it came from
-        if (key === "veg") item.category = "veg";
-        if (key === "non-veg") item.category = "non-veg";
-        if (key === "alcohol") item.category = "alcoholic-drink";
-        if (key === "non-alcoholic") item.category = "non-alcoholic-drink";
-        return item;
-      });
-    });
-
-    const results = await Promise.all(fetchPromises);
-    menuItems = results.flat().filter((item) => item.name && item.inStock !== "NO");
+    const initialItems = await fetchSheetItems(initialKey, initialUrl);
+    mergeSheetItems(initialKey, initialItems);
 
     if (!menuItems.length) {
-      statusEl.textContent = "No menu items found across tabs.";
-      return;
+      statusEl.textContent = "No menu items found in default tab.";
+    } else {
+      statusEl.textContent = "";
     }
-
-    statusEl.textContent = "";
     applyFilterVisibility();
     renderMenu();
   } catch (error) {
-    statusEl.textContent = "Unable to load one or more menu tabs. Verify the URLs.";
+    statusEl.textContent = "Unable to load default menu tab.";
     console.error(error);
+  } finally {
+    isInitialLoadInProgress = false;
+    if (!menuItems.length) renderMenu();
   }
+
+  void loadRemainingSheets(initialKey);
+}
+
+function getInitialSheetKey() {
+  if (activeMenuType === "drinks") {
+    return activeDrinkFilter === "non-alcoholic" ? "non-alcoholic" : "alcohol";
+  }
+  return activeFoodFilter === "veg" ? "veg" : "non-veg";
+}
+
+async function fetchSheetItems(key, url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Could not fetch ${key} data.`);
+
+  const csv = await response.text();
+  return parseCsv(csv).map((row) => {
+    const item = normalizeItem(row);
+    // Force the category based on which tab it came from
+    if (key === "veg") item.category = "veg";
+    if (key === "non-veg") item.category = "non-veg";
+    if (key === "alcohol") item.category = "alcoholic-drink";
+    if (key === "non-alcoholic") item.category = "non-alcoholic-drink";
+    return item;
+  });
+}
+
+function mergeSheetItems(key, items) {
+  sheetItemsByKey[key] = items;
+  menuItems = Object.values(sheetItemsByKey)
+    .flat()
+    .filter((item) => item.name && item.inStock !== "NO");
+}
+
+async function loadRemainingSheets(initialKey) {
+  const remaining = Object.entries(SHEET_URLS).filter(
+    ([key, url]) => key !== initialKey && !url.includes("REPLACE_WITH")
+  );
+
+  if (!remaining.length) {
+    if (!menuItems.length) statusEl.textContent = "No menu items found across tabs.";
+    return;
+  }
+
+  const results = await Promise.allSettled(
+    remaining.map(([key, url]) => fetchSheetItems(key, url).then((items) => ({ key, items })))
+  );
+
+  let failedCount = 0;
+  let loadedCount = 0;
+
+  results.forEach((result) => {
+    if (result.status === "fulfilled") {
+      mergeSheetItems(result.value.key, result.value.items);
+      loadedCount += 1;
+      return;
+    }
+    failedCount += 1;
+    console.error(result.reason);
+  });
+
+  if (loadedCount) {
+    applyFilterVisibility();
+    renderMenu();
+  }
+
+  if (failedCount) {
+    statusEl.textContent = menuItems.length
+      ? "Some menu tabs could not be loaded."
+      : "Unable to load menu tabs. Verify the URLs.";
+    return;
+  }
+
+  statusEl.textContent = menuItems.length ? "" : "No menu items found across tabs.";
 }
 
 function renderMenu() {
@@ -137,6 +205,10 @@ function renderMenu() {
   const itemsToRender = activeMenuType === "drinks" ? groupDrinkItems(filtered) : filtered;
 
   if (!itemsToRender.length) {
+    if (isInitialLoadInProgress) {
+      menuListEl.innerHTML = "";
+      return;
+    }
     menuListEl.innerHTML = '<div class="empty">No items found for this filter.</div>';
     return;
   }
