@@ -97,7 +97,7 @@ async function init() {
     });
 
     const results = await Promise.all(fetchPromises);
-    menuItems = results.flat().filter((item) => item.name);
+    menuItems = results.flat().filter((item) => item.name && item.inStock !== "NO");
 
     if (!menuItems.length) {
       statusEl.textContent = "No menu items found across tabs.";
@@ -231,6 +231,7 @@ function normalizeItem(row) {
     category: row.category || "",
     section: row.section || "",
     menuType: row.type || row.menu || "",
+    inStock: (row.in_stock || row.instock || "YES").trim().toUpperCase(),
   };
 }
 
