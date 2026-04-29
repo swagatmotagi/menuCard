@@ -50,49 +50,11 @@ body {
   overflow-x: hidden;
 }
 
-body::before,
-body::after {
-  content: "";
-  position: fixed;
-  width: 48vw;
-  height: 48vw;
-  min-width: 260px;
-  min-height: 260px;
-  border-radius: 999px;
-  pointer-events: none;
-  filter: blur(42px);
-  opacity: 0.2;
-  z-index: -1;
-  animation: floatBlob 14s ease-in-out infinite;
-}
-
-body::before {
-  background: color-mix(in srgb, var(--accent) 80%, transparent);
-  top: -14vw;
-  right: -12vw;
-}
-
-body::after {
-  background: color-mix(in srgb, var(--accent-strong) 80%, transparent);
-  bottom: -18vw;
-  left: -12vw;
-  animation-delay: -7s;
-}
-
 .container {
   position: relative;
   max-width: 900px;
   margin: 0 auto;
   padding: 26px 16px 34px;
-}
-
-.header,
-.section-panel,
-.menu-item,
-.filter-toggle,
-.theme-toggle {
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
 }
 
 .header {
@@ -494,15 +456,5 @@ h1 {
 
   .vertical-tab-btn {
     text-align: center;
-  }
-}
-
-@keyframes floatBlob {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  50% {
-    transform: translate3d(0, -10px, 0) scale(1.05);
   }
 }
